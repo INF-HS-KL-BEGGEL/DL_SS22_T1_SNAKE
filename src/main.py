@@ -22,7 +22,9 @@ clock = pygame.time.Clock()
 snake_block = 10
 snake_speed = 15
 
+global  y1_change
 y1_change = snake_block
+global x1_change
 x1_change = 0
  
 font_style = pygame.font.SysFont("bahnschrift", 25)
@@ -45,26 +47,37 @@ def message(msg, color):
     dis.blit(mesg, [dis_width / 6, dis_height / 3])
 
 def left():
-	x1_change = -snake_block
+    global y1_change
+    global x1_change
+    x1_change = -snake_block
     y1_change = 0
 
 def right():
-	x1_change = snake_block
+    global y1_change
+    global x1_change
+    x1_change = snake_block
     y1_change = 0
 	
 	
 def up():
-	y1_change = -snake_block
+    global y1_change
+    global x1_change
+    y1_change = -snake_block
     x1_change = 0
 	
 def down():
-	y1_change = snake_block
+    global y1_change
+    global x1_change
+    y1_change = snake_block
     x1_change = 0
  
 def gameLoop():
     game_over = False
     game_close = False
- 
+
+    global y1_change
+    global x1_change
+    
     x1 = dis_width / 2
     y1 = dis_height / 2
  
