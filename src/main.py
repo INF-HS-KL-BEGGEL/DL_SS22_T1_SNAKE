@@ -26,7 +26,13 @@ global  y1_change
 y1_change = snake_block
 global x1_change
 x1_change = 0
- 
+
+global reward
+reward=0
+
+global score
+score=0
+
 font_style = pygame.font.SysFont("bahnschrift", 25)
 score_font = pygame.font.SysFont("comicsansms", 35)
  
@@ -77,6 +83,8 @@ def gameLoop():
 
     global y1_change
     global x1_change
+    global score
+    global reward
     
     x1 = dis_width / 2
     y1 = dis_height / 2
@@ -149,8 +157,17 @@ def gameLoop():
  
         clock.tick(snake_speed)
  
+    reset()
+
+
+gameLoop()
+
+def quit():
     pygame.quit()
     quit()
- 
- 
-gameLoop()
+
+def reset():
+    global y1_change
+    global x1_change
+    y1_change=snake_block
+    x1_change=0
