@@ -1,6 +1,8 @@
 import pygame
 import random
+from collections import deque
 from enum import Enum
+from PIL import Image
 from collections import namedtuple
 import numpy as np
 
@@ -23,14 +25,16 @@ BLUE1 = (0, 0, 255)
 BLUE2 = (0, 100, 255)
 BLACK = (0,0,0)
 
-BLOCK_SIZE = 20
-SPEED = 40
+BLOCK_SIZE = 25
+SPEED = 100
 
 class SnakeGameAI:
 
-    def __init__(self, w=640, h=480):
+    def __init__(self, w=250, h=250):
         self.w = w
         self.h = h
+        self._frames = None
+        self._num_last_frames = 4
         # init display
         self.display = pygame.display.set_mode((self.w, self.h))
         pygame.display.set_caption('Snake')
@@ -41,7 +45,7 @@ class SnakeGameAI:
     def reset(self):
         # init game state
         self.direction = Direction.RIGHT
-
+        self._frames = None
         self.head = Point(self.w/2, self.h/2)
         self.snake = [self.head,
                       Point(self.head.x-BLOCK_SIZE, self.head.y),
@@ -59,6 +63,37 @@ class SnakeGameAI:
         self.food = Point(x, y)
         if self.food in self.snake:
             self._place_food()
+    
+    def get_last_frames(self, observation):
+        """
+        Gets the 4 previous frames of the game as the state.
+        Credits goes to https://github.com/YuriyGuts/snake-ai-reinforcement.
+        
+        :param observation: The screenshot of the game
+        :return: The state containing the 4 previous frames taken from the game
+        """
+        frame = observation
+        if self._frames is None:
+            self._frames = deque([frame] * self._num_last_frames)
+        else:
+            self._frames.append(frame)
+            self._frames.popleft()
+        state = np.asarray(self._frames).transpose()  # Transpose the array so the dimension of the state is (84,84,4)
+        return state
+
+    def screenshot(self):
+        """
+        Takes a screenshot of the game , converts it to grayscale, reshapes it to size INPUT_HEIGHT, INPUT_WIDTH,
+        and returns a np.array.
+        Credits goes to https://github.com/danielegrattarola/deep-q-snake/blob/master/snake.py
+        """
+        data = pygame.image.tostring(self.display, 'RGB')  # Take screenshot
+        image = Image.frombytes('RGB', (250, 250), data)
+        image = image.convert('L')  # Convert to greyscale
+        image = image.resize((84, 84)) 
+        matrix = np.asarray(image.getdata(), dtype=np.uint8)
+        matrix = (matrix - 128)/(128 - 1)  # Normalize from -1 to 1
+        return matrix.reshape(image.size[0], image.size[1])
 
 
     def play_step(self, action):
@@ -92,8 +127,11 @@ class SnakeGameAI:
         # 5. update ui and clock
         self._update_ui()
         self.clock.tick(SPEED)
+
+        new_observation = self.screenshot()
+        new_state = self.get_last_frames(new_observation)
         # 6. return game over and score
-        return reward, game_over, self.score
+        return reward, game_over, self.score, new_state
 
 
     def is_collision(self, pt=None):

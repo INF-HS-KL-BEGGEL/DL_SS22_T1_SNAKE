@@ -1,10 +1,12 @@
 import torch
 import random
 import numpy as np
+import torchvision.transforms as tv
 from collections import deque
 from game import SnakeGameAI, Direction, Point
 from model import Linear_QNet, QTrainer
 from helper import plot
+from game import SnakeGameAI
 
 MAX_MEMORY = 100_000
 BATCH_SIZE = 1000
@@ -17,8 +19,8 @@ class Agent:
         self.epsilon = 0 # randomness
         self.gamma = 0.9 # discount rate
         self.memory = deque(maxlen=MAX_MEMORY) # popleft()
-        self.model = Linear_QNet(11, 256, 3)
-        self.trainer = QTrainer(self.model, lr=LR, gamma=self.gamma)
+        self.model = Linear_QNet()
+        self.trainer = QTrainer(self.model, lr=LR, gamma=self.gamma, replace=10)
 
 
     def get_state(self, game):
@@ -32,40 +34,14 @@ class Agent:
         dir_r = game.direction == Direction.RIGHT
         dir_u = game.direction == Direction.UP
         dir_d = game.direction == Direction.DOWN
+        initial = [0,0,0]
+        if random.randint(0, 200) < self.epsilon:
+            move = random.randint(0, 2)
+            initial[move] = 1
 
-        state = [
-            # Danger straight
-            (dir_r and game.is_collision(point_r)) or 
-            (dir_l and game.is_collision(point_l)) or 
-            (dir_u and game.is_collision(point_u)) or 
-            (dir_d and game.is_collision(point_d)),
-
-            # Danger right
-            (dir_u and game.is_collision(point_r)) or 
-            (dir_d and game.is_collision(point_l)) or 
-            (dir_l and game.is_collision(point_u)) or 
-            (dir_r and game.is_collision(point_d)),
-
-            # Danger left
-            (dir_d and game.is_collision(point_r)) or 
-            (dir_u and game.is_collision(point_l)) or 
-            (dir_r and game.is_collision(point_u)) or 
-            (dir_l and game.is_collision(point_d)),
-            
-            # Move direction
-            dir_l,
-            dir_r,
-            dir_u,
-            dir_d,
-            
-            # Food location 
-            game.food.x < game.head.x,  # food left
-            game.food.x > game.head.x,  # food right
-            game.food.y < game.head.y,  # food up
-            game.food.y > game.head.y  # food down
-            ]
-
-        return np.array(state, dtype=int)
+        game1 = SnakeGameAI()
+        reward1, game1_over, score1, new_state = game1.play_step(action=initial)
+        return new_state
 
     def remember(self, state, action, reward, next_state, done):
         self.memory.append((state, action, reward, next_state, done)) # popleft if MAX_MEMORY is reached
@@ -92,7 +68,7 @@ class Agent:
             move = random.randint(0, 2)
             final_move[move] = 1
         else:
-            state0 = torch.tensor(state, dtype=torch.float)
+            state0 = torch.tensor(state, dtype=float)
             prediction = self.model(state0)
             move = torch.argmax(prediction).item()
             final_move[move] = 1
@@ -115,7 +91,7 @@ def train():
         final_move = agent.get_action(state_old)
 
         # perform move and get new state
-        reward, done, score = game.play_step(final_move)
+        reward, done, score, new_state = game.play_step(final_move)
         state_new = agent.get_state(game)
 
         # train short memory
