@@ -66,6 +66,7 @@ class QTrainer:
         action = torch.tensor(action, dtype=torch.long)
         reward = torch.tensor(reward, dtype=torch.float)
         # (n, x)
+        print(state)
 
         self.replace_target_network()
         if len(state.shape) == 1:
@@ -81,10 +82,10 @@ class QTrainer:
         pred = self.model(state)
 
         target = pred.clone()
-        for idx in range(len(done)):
-            Q_new = reward[idx]
-            if not done[idx]:
-                Q_new = reward[idx] + self.gamma * torch.max(self.target_model(next_state[idx]))
+        for idx in range(len(next_state)):
+            Q_new = reward.item()
+            if not done:
+                Q_new = reward + self.gamma * torch.max(self.model(next_state[idx]))
 
             target[idx][torch.argmax(action[idx]).item()] = Q_new
     

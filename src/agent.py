@@ -53,12 +53,12 @@ class Agent:
     def get_action(self, state):
         # random moves: tradeoff exploration / exploitation
         self.epsilon = 80 - self.n_games
-        final_move = [0,0,0]
+        final_move = [0,0,0, 0]
         if random.randint(0, 200) < self.epsilon:
             move = random.randint(0, 2)
             final_move[move] = 1
         else:
-            state0 = torch.unsqueeze(torch.FloatTensor(state), 0)
+            state0 = torch.tensor(state, dtype = torch.float)
             prediction = self.model(state0)
             move = torch.argmax(prediction).item()
             final_move[move] = 1
@@ -75,7 +75,8 @@ def train():
     game = SnakeGameAI()
     while True:
         # get old state
-        state_old = agent.get_state(game)
+        observation = game.screenshot()
+        state_old = game.get_last_frames(observation)
 
         # get move
         final_move = agent.get_action(state_old)
@@ -85,16 +86,16 @@ def train():
         state_new = agent.get_state(game)
 
         # train short memory
-        agent.train_short_memory(state_old, final_move, reward, state_new, done)
+        agent.train_short_memory(state_old, final_move, reward, new_state, done)
 
         # remember
-        agent.remember(state_old, final_move, reward, state_new, done)
+        agent.remember(state_old, final_move, reward, new_state, done)
 
         if done:
             # train long memory, plot result
             game.reset()
             agent.n_games += 1
-            agent.train_long_memory()
+            #agent.train_long_memory()
 
             if score > record:
                 record = score

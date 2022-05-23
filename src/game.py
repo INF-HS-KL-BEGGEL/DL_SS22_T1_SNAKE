@@ -1,3 +1,4 @@
+from hashlib import new
 from turtle import shape
 import pygame
 import random
@@ -79,7 +80,9 @@ class SnakeGameAI:
         else:
             self._frames.append(frame)
             self._frames.popleft()
-        state = np.asarray(self._frames).transpose()  # Transpose the array so the dimension of the state is (84,84,4)
+        state = np.asarray(self._frames)#.transpose()  # Transpose the array so the dimension of the state is (84,84,4)
+        state=np.expand_dims(state,axis=0)
+
         return state
 
     def screenshot(self):
@@ -115,7 +118,9 @@ class SnakeGameAI:
         if self.is_collision() or self.frame_iteration > 100*len(self.snake):
             game_over = True
             reward = -10
-            return reward, game_over, self.score
+            new_observation = self.screenshot()
+            new_state = self.get_last_frames(new_observation)
+            return reward, game_over, self.score, new_state
 
         # 4. place new food or just move
         if self.head == self.food:
@@ -168,14 +173,16 @@ class SnakeGameAI:
         clock_wise = [Direction.RIGHT, Direction.DOWN, Direction.LEFT, Direction.UP]
         idx = clock_wise.index(self.direction)
 
-        if np.array_equal(action, [1, 0, 0]):
-            new_dir = clock_wise[idx] # no change
-        elif np.array_equal(action, [0, 1, 0]):
-            next_idx = (idx + 1) % 4
-            new_dir = clock_wise[next_idx] # right turn r -> d -> l -> u
-        else: # [0, 0, 1]
-            next_idx = (idx - 1) % 4
-            new_dir = clock_wise[next_idx] # left turn r -> u -> l -> d
+        if np.array_equal(action, [1, 0, 0, 0]):
+            new_dir = Direction.RIGHT#clock_wise[idx] # no change
+        elif np.array_equal(action, [0, 1, 0,0]):
+            #next_idx = (idx + 1) % 4
+            new_dir = Direction.RIGHT#clock_wise[next_idx] # right turn r -> d -> l -> u
+        elif np.array_equal(action, [0, 0, 1,0]):# [0, 0, 1]
+            #next_idx = (idx - 1) % 4
+            new_dir = Direction.UP#clock_wise[next_idx] # left turn r -> u -> l -> d
+        else:
+            new_dir = Direction.DOWN
 
         self.direction = new_dir
 
