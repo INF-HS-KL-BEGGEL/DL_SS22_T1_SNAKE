@@ -1,3 +1,4 @@
+from turtle import shape
 import pygame
 import random
 from collections import deque

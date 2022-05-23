@@ -20,27 +20,17 @@ class Agent:
         self.gamma = 0.9 # discount rate
         self.memory = deque(maxlen=MAX_MEMORY) # popleft()
         self.model = Linear_QNet()
+        print(self.model)
         self.trainer = QTrainer(self.model, lr=LR, gamma=self.gamma, replace=10)
 
 
     def get_state(self, game):
-        head = game.snake[0]
-        point_l = Point(head.x - 20, head.y)
-        point_r = Point(head.x + 20, head.y)
-        point_u = Point(head.x, head.y - 20)
-        point_d = Point(head.x, head.y + 20)
-        
-        dir_l = game.direction == Direction.LEFT
-        dir_r = game.direction == Direction.RIGHT
-        dir_u = game.direction == Direction.UP
-        dir_d = game.direction == Direction.DOWN
         initial = [0,0,0]
         if random.randint(0, 200) < self.epsilon:
             move = random.randint(0, 2)
             initial[move] = 1
 
-        game1 = SnakeGameAI()
-        reward1, game1_over, score1, new_state = game1.play_step(action=initial)
+        reward1, game1_over, score1, new_state = game.play_step(action=initial)
         return new_state
 
     def remember(self, state, action, reward, next_state, done):
@@ -54,8 +44,8 @@ class Agent:
 
         states, actions, rewards, next_states, dones = zip(*mini_sample)
         self.trainer.train_step(states, actions, rewards, next_states, dones)
-        #for state, action, reward, nexrt_state, done in mini_sample:
-        #    self.trainer.train_step(state, action, reward, next_state, done)
+        for state, action, reward, next_state, done in mini_sample:
+            self.trainer.train_step(state, action, reward, next_state, done)
 
     def train_short_memory(self, state, action, reward, next_state, done):
         self.trainer.train_step(state, action, reward, next_state, done)
@@ -68,7 +58,7 @@ class Agent:
             move = random.randint(0, 2)
             final_move[move] = 1
         else:
-            state0 = torch.tensor(state, dtype=float)
+            state0 = torch.unsqueeze(torch.FloatTensor(state), 0)
             prediction = self.model(state0)
             move = torch.argmax(prediction).item()
             final_move[move] = 1

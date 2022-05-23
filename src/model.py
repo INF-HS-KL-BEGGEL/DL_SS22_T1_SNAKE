@@ -10,24 +10,30 @@ import os
 class Linear_QNet(nn.Module):
     def __init__(self):
         super().__init__()
-        
-        self.linear1 = nn.Conv2d(84, 84, kernel_size=4, stride=4)
-        self.linear2 = nn.Conv2d(84, 16, kernel_size=4, stride=2)
+        # 8 x 8 x 4 with 32 Filters ,Stride 4 -> Output 21 x 21 x 32 -> max_pool 11 x 11 x 32
+        self.conv1=nn.Conv2d(4,32,kernel_size=8,stride=4,padding = 2)
+        self.conv1.weight.data.normal_(0,0.1)
+        self.mp1=nn.MaxPool2d(2,stride=2,padding=1)  #2x2x32 stride=2
+        # 4 x 4 x 32 with 64 Filters ,Stride 2 -> Output 6 x 6 x 64
+        self.conv2=nn.Conv2d(32,64,kernel_size=4,stride=2,padding=2)
+        self.conv2.weight.data.normal_(0,0.1)
+        # 3 x 3 x 64 with 64 Filters,Stride 1 -> Output 6 x 6 x 64
+        self.conv3=nn.Conv2d(64,64,kernel_size=3,stride=1,padding = 1)
+        self.conv3.weight.data.normal_(0,0.1)
 
-        self.dense1 = torch.nn.Linear(3872,256)
-        self.dense2 = torch.nn.Linear(256, 3)
+        self.fc1=nn.Linear(2304,4)
+        self.fc1.weight.data.normal_(0,0.1)
+     
+    def forward(self,x):
+            
+        x=F.relu(self.conv1(x))
+        x=self.mp1((x))
+        x=F.relu(self.conv2(x))
+        x=F.relu(self.conv3(x))     
+        conv3_to_reshaped=torch.reshape(x,[-1,2304])
+        output=self.fc1(conv3_to_reshaped)
+        return output  #action's value
 
-    def forward(self, x):
-        x = self.linear1(x)
-        x = F.relu(x)
-        x = self.linear2(x)
-        x = F.relu(x)
-        x = torch.reshape(x, shape=[-1, 32*11*11])
-        x = self.dense1(x)
-        x = F.relu(x)
-        x = self.dense2(x)
-        x = F.relu(x)
-        return x
 
     def save(self, file_name='model.pth'):
         model_folder_path = './model'
