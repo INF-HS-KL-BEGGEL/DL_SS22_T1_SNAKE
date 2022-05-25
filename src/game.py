@@ -1,4 +1,6 @@
 from hashlib import new
+from math import fabs
+from sys import flags
 from turtle import shape
 import pygame
 import random
@@ -28,7 +30,7 @@ BLUE2 = (0, 100, 255)
 BLACK = (0,0,0)
 
 BLOCK_SIZE = 25
-SPEED = 100
+SPEED = 900
 
 class SnakeGameAI:
 
@@ -81,7 +83,6 @@ class SnakeGameAI:
             self._frames.append(frame)
             self._frames.popleft()
         state = np.asarray(self._frames)#.transpose()  # Transpose the array so the dimension of the state is (84,84,4)
-        state=np.expand_dims(state,axis=0)
 
         return state
 
@@ -92,6 +93,7 @@ class SnakeGameAI:
         Credits goes to https://github.com/danielegrattarola/deep-q-snake/blob/master/snake.py
         """
         data = pygame.image.tostring(self.display, 'RGB')  # Take screenshot
+        #data = pygame.surfarray.array3d(pygame.display.get_surface())
         image = Image.frombytes('RGB', (250, 250), data)
         image = image.convert('L')  # Convert to greyscale
         image = image.resize((84, 84)) 
@@ -118,9 +120,8 @@ class SnakeGameAI:
         if self.is_collision() or self.frame_iteration > 100*len(self.snake):
             game_over = True
             reward = -10
-            new_observation = self.screenshot()
-            new_state = self.get_last_frames(new_observation)
-            return reward, game_over, self.score, new_state
+            
+            return reward, game_over, self.score
 
         # 4. place new food or just move
         if self.head == self.food:
@@ -134,10 +135,8 @@ class SnakeGameAI:
         self._update_ui()
         self.clock.tick(SPEED)
 
-        new_observation = self.screenshot()
-        new_state = self.get_last_frames(new_observation)
         # 6. return game over and score
-        return reward, game_over, self.score, new_state
+        return reward, game_over, self.score
 
 
     def is_collision(self, pt=None):

@@ -12,17 +12,13 @@ class Linear_QNet(nn.Module):
         super().__init__()
         # 8 x 8 x 4 with 32 Filters ,Stride 4 -> Output 21 x 21 x 32 -> max_pool 11 x 11 x 32
         self.conv1=nn.Conv2d(4,32,kernel_size=8,stride=4,padding = 2)
-        self.conv1.weight.data.normal_(0,0.1)
         self.mp1=nn.MaxPool2d(2,stride=2,padding=1)  #2x2x32 stride=2
         # 4 x 4 x 32 with 64 Filters ,Stride 2 -> Output 6 x 6 x 64
         self.conv2=nn.Conv2d(32,64,kernel_size=4,stride=2,padding=2)
-        self.conv2.weight.data.normal_(0,0.1)
         # 3 x 3 x 64 with 64 Filters,Stride 1 -> Output 6 x 6 x 64
         self.conv3=nn.Conv2d(64,64,kernel_size=3,stride=1,padding = 1)
-        self.conv3.weight.data.normal_(0,0.1)
 
         self.fc1=nn.Linear(2304,4)
-        self.fc1.weight.data.normal_(0,0.1)
      
     def forward(self,x):
             
@@ -58,15 +54,13 @@ class QTrainer:
     def replace_target_network(self):
         if self.learn_step_counter % self.replace_target_cnt == 0:
             self.target_model.load_state_dict(self.model.state_dict())
-            print("test")
 
     def train_step(self, state, action, reward, next_state, done):
-        state = torch.tensor(state, dtype=torch.float)
-        next_state = torch.tensor(next_state, dtype=torch.float)
-        action = torch.tensor(action, dtype=torch.long)
-        reward = torch.tensor(reward, dtype=torch.float)
+        #state = torch.tensor(state, dtype=torch.float)
+        #next_state = torch.tensor(next_state, dtype=torch.float)
+        #action = torch.tensor(action, dtype=torch.long)
+        #reward = torch.tensor(reward, dtype=torch.float)
         # (n, x)
-        print(state)
 
         self.replace_target_network()
         if len(state.shape) == 1:
@@ -82,10 +76,10 @@ class QTrainer:
         pred = self.model(state)
 
         target = pred.clone()
-        for idx in range(len(next_state)):
-            Q_new = reward.item()
-            if not done:
-                Q_new = reward + self.gamma * torch.max(self.model(next_state[idx]))
+        for idx in range(len(done)):
+            Q_new = reward[idx]
+            if not done[idx]:
+                Q_new = reward[idx] + self.gamma * torch.max(self.model(next_state[idx]))
 
             target[idx][torch.argmax(action[idx]).item()] = Q_new
     
