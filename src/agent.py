@@ -40,14 +40,23 @@ class SnakeAgent:
 
 
     def act(self, state):
+        """
+        Given a state, choose an epsilon-greedy action and update value of step.
+        Inputs:
+        state(LazyFrame): A single observation of the current state, dimension is (state_dim)
+        Outputs:
+        action_idx (int): An integer representing which action Mario will perform
+        """
         # EXPLORE
-        final_move = [0,0,0,0]
+        if np.random.rand() < self.exploration_rate:
+            action_idx = np.random.randint(self.action_dim)
 
-        state0 = torch.FloatTensor(state).cuda() if self.use_cuda else torch.FloatTensor(state)
-        state0.unsqueeze(0)
-        prediction = self.net(state0, model='training')
-        move = torch.argmax(prediction).item()
-        final_move[move] = 1
+        # EXPLOIT
+        else:
+            state = torch.FloatTensor(state).cuda() if self.use_cuda else torch.FloatTensor(state)
+            state = state.unsqueeze(0)
+            action_values = self.net(state, model='training')
+            action_idx = torch.argmax(action_values, axis=1).item()
 
         # decrease exploration_rate
         self.exploration_rate *= self.exploration_rate_decay
@@ -55,7 +64,7 @@ class SnakeAgent:
 
         # increment step
         self.curr_step += 1
-        return final_move
+        return action_idx
 
     def cache(self, state, next_state, action, reward, done):
 

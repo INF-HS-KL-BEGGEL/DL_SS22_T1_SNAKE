@@ -2,6 +2,7 @@ from hashlib import new
 from math import fabs
 from sys import flags
 from turtle import shape
+from typing import final
 import pygame
 import random
 from collections import deque
@@ -103,6 +104,8 @@ class SnakeGameAI:
 
 
     def play_step(self, action):
+        final_move = [0,0,0,0]
+        final_move[action] = 1
         self.frame_iteration += 1
         # 1. collect user input
         for event in pygame.event.get():
@@ -111,7 +114,7 @@ class SnakeGameAI:
                 quit()
         
         # 2. move
-        self._move(action) # update the head
+        self._move(final_move) # update the head
         self.snake.insert(0, self.head)
         
         # 3. check if game over
