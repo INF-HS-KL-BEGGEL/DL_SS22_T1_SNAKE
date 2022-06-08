@@ -1,119 +1,155 @@
-from os import access, stat
+from os import stat
 import torch
-import random
-import numpy as np
-import torchvision.transforms as tv
+import random, numpy as np
+from pathlib import Path
+
+from neural import SnakeCNN
 from collections import deque
-from game import SnakeGameAI, Direction, Point
-from model import Linear_QNet, QTrainer
-from helper import plot
-from game import SnakeGameAI
 
-MAX_MEMORY = 100_000
-BATCH_SIZE = 1000
-LR = 0.001
 
-class Agent:
+class SnakeAgent:
+    def __init__(self, state_dim, action_dim, save_dir, checkpoint=None):
+        self.state_dim = state_dim
+        self.action_dim = action_dim
+        self.memory = deque(maxlen=100000)
+        self.batch_size = 32
 
-    def __init__(self):
-        self.n_games = 0
-        self.epsilon = 0 # randomness
-        self.gamma = 0.9 # discount rate
-        self.memory = deque(maxlen=MAX_MEMORY) # popleft()
-        self.model = Linear_QNet()
-        self.trainer = QTrainer(self.model, lr=LR, gamma=self.gamma, replace=10)
+        self.exploration_rate = 1
+        self.exploration_rate_decay = 0.99999975
+        self.exploration_rate_min = 0.1
+        self.gamma = 0.9
+
+        self.curr_step = 0
+        self.burnin = 1e5  # min. experiences before training
+        self.learn_every = 3   # no. of experiences between updates to Q_online
+        self.sync_every = 1e4   # no. of experiences between Q_target & Q_online sync
+
+        self.save_every = 5e5   
+        self.save_dir = save_dir
+
         self.use_cuda = torch.cuda.is_available()
 
+        self.net = SnakeCNN(self.state_dim, self.action_dim).float()
+        if self.use_cuda:
+            self.net = self.net.to(device='cuda')
+        if checkpoint:
+            self.load(checkpoint)
+
+        self.optimizer = torch.optim.Adam(self.net.parameters(), lr=0.00025)
+        self.loss_fn = torch.nn.SmoothL1Loss()
 
 
-    def remember(self, state, action, reward, next_state, done):
-        state = torch.FloatTensor(state).cuda() if self.use_cuda else torch.FloatTensor(state)
-        next_state = torch.FloatTensor(next_state).cuda() if self.use_cuda else torch.FloatTensor(next_state)
-        action = torch.LongTensor([action]).cuda() if self.use_cuda else torch.LongTensor([action])
-        reward = torch.DoubleTensor([reward]).cuda() if self.use_cuda else torch.DoubleTensor([reward])
-        done = torch.BoolTensor([done]).cuda() if self.use_cuda else torch.BoolTensor([done])
-        self.memory.append( (state, action, reward, next_state, done, ) )
-
-    def train_long_memory(self):
-        if len(self.memory) > BATCH_SIZE:
-            sample = random.sample(self.memory, BATCH_SIZE) # list of tuples
-        else:
-            sample = self.memory
-        state, action, reward, next_state, done = map(torch.stack, zip(*sample))
-        self.trainer.train_step(state, action, reward, next_state, done)
-
-    def train_short_memory(self, state, action, reward, next_state, done):
-        state = torch.FloatTensor(state).cuda() if self.use_cuda else torch.FloatTensor(state)
-        next_state = torch.FloatTensor(next_state).cuda() if self.use_cuda else torch.FloatTensor(next_state)
-        action = torch.LongTensor([action]).cuda() if self.use_cuda else torch.LongTensor([action])
-        reward = torch.DoubleTensor([reward]).cuda() if self.use_cuda else torch.DoubleTensor([reward])
-        done = torch.BoolTensor([done]).cuda() if self.use_cuda else torch.BoolTensor([done])
-        state = state.unsqueeze(0)
-        next_state = next_state.unsqueeze(0)
-        self.trainer.train_step(state, action, reward, next_state, done)
-
-    def get_action(self, state):
-        # random moves: tradeoff exploration / exploitation
-        self.epsilon = 80 - self.n_games
+    def act(self, state):
+        # EXPLORE
         final_move = [0,0,0,0]
-        if random.randint(0, 200) < self.epsilon:
-            move = random.randint(0, 3)
-            final_move[move] = 1
-        else:
-            state0 = torch.FloatTensor(state).cuda() if self.use_cuda else torch.FloatTensor(state)
-            state0.unsqueeze(0)
-            prediction = self.model(state0)
-            move = torch.argmax(prediction).item()
-            final_move[move] = 1
 
+        state0 = torch.FloatTensor(state).cuda() if self.use_cuda else torch.FloatTensor(state)
+        state0.unsqueeze(0)
+        prediction = self.net(state0, model='training')
+        move = torch.argmax(prediction).item()
+        final_move[move] = 1
+
+        # decrease exploration_rate
+        self.exploration_rate *= self.exploration_rate_decay
+        self.exploration_rate = max(self.exploration_rate_min, self.exploration_rate)
+
+        # increment step
+        self.curr_step += 1
         return final_move
 
+    def cache(self, state, next_state, action, reward, done):
 
-def train():
-    plot_scores = []
-    plot_mean_scores = []
-    total_score = 0
-    record = 0
-    agent = Agent()
-    game = SnakeGameAI()
-    while True:
-        # get old state
-        observation = game.screenshot()
-        state_old = game.get_last_frames(observation)
+        state = torch.FloatTensor(state).cuda() if self.use_cuda else torch.FloatTensor(state)
+        next_state = torch.FloatTensor(next_state).cuda() if self.use_cuda else torch.FloatTensor(next_state)
+        action = torch.LongTensor([action]).cuda() if self.use_cuda else torch.LongTensor([action])
+        reward = torch.DoubleTensor([reward]).cuda() if self.use_cuda else torch.DoubleTensor([reward])
+        done = torch.BoolTensor([done]).cuda() if self.use_cuda else torch.BoolTensor([done])
 
-        # get move
-        final_move = agent.get_action(state_old)
-
-        # perform move and get new state
-        reward, done, score = game.play_step(final_move)
-
-        observation = game.screenshot()
-        new_state = game.get_last_frames(observation)
-
-        # train short memory
-        agent.train_short_memory(state_old, final_move, reward, new_state, done)
-
-        # remember
-        agent.remember(state_old, final_move, reward, new_state, done)
-
-        if done:
-            # train long memory, plot result
-            game.reset()
-            agent.n_games += 1
-            agent.train_long_memory()
-
-            if score > record:
-                record = score
-                agent.model.save()
-
-            print('Game', agent.n_games, 'Score', score, 'Record:', record)
-
-            plot_scores.append(score)
-            total_score += score
-            mean_score = total_score / agent.n_games
-            plot_mean_scores.append(mean_score)
-            plot(plot_scores, plot_mean_scores)
+        self.memory.append( (state, next_state, action, reward, done,) )
 
 
-if __name__ == '__main__':
-    train()
+    def recall(self):
+        """
+        Retrieve a batch of experiences from memory
+        """
+        batch = random.sample(self.memory, self.batch_size)
+        state, next_state, action, reward, done = map(torch.stack, zip(*batch))
+        return state, next_state, action.squeeze(), reward.squeeze(), done.squeeze()
+
+
+    def td_estimate(self, state, action):
+        current_Q = self.net(state, model='training')[np.arange(0, self.batch_size), action] # Q_online(s,a)
+        return current_Q
+
+
+    @torch.no_grad()
+    def td_target(self, reward, next_state, done):
+        next_state_Q = self.net(next_state, model='training')
+        best_action = torch.argmax(next_state_Q, axis=1)
+        next_Q = self.net(next_state, model='target')[np.arange(0, self.batch_size), best_action]
+        return (reward + (1 - done.float()) * self.gamma * next_Q).float()
+
+
+    def update_Q_online(self, td_estimate, td_target) :
+        loss = self.loss_fn(td_estimate, td_target)
+        self.optimizer.zero_grad()
+        loss.backward()
+        self.optimizer.step()
+        return loss.item()
+
+
+    def sync_Q_target(self):
+        self.net.target.load_state_dict(self.net.online.state_dict())
+
+
+    def learn(self):
+        if self.curr_step % self.sync_every == 0:
+            self.sync_Q_target()
+
+        if self.curr_step % self.save_every == 0:
+            self.save()
+
+        if self.curr_step < self.burnin:
+            return None, None
+
+        if self.curr_step % self.learn_every != 0:
+            return None, None
+
+        # Sample from memory
+        state, next_state, action, reward, done = self.recall()
+
+        # Get TD Estimate
+        td_est = self.td_estimate(state, action)
+
+        # Get TD Target
+        td_tgt = self.td_target(reward, next_state, done)
+
+        # Backpropagate loss through Q_online
+        loss = self.update_Q_online(td_est, td_tgt)
+
+        return (td_est.mean().item(), loss)
+
+
+    def save(self):
+        save_path = self.save_dir / f"snake_cnn{int(self.curr_step // self.save_every)}.chkpt"
+        torch.save(
+            dict(
+                model=self.net.state_dict(),
+                exploration_rate=self.exploration_rate
+            ),
+            save_path
+        )
+        print(f"SnakeCNN saved to {save_path} at step {self.curr_step}")
+
+
+    def load(self, load_path):
+        if not load_path.exists():
+            raise ValueError(f"{load_path} does not exist")
+
+        ckp = torch.load(load_path, map_location=('cuda' if self.use_cuda else 'cpu'))
+        exploration_rate = ckp.get('exploration_rate')
+        state_dict = ckp.get('model')
+
+        print(f"Loading model at {load_path} with exploration rate {exploration_rate}")
+        self.net.load_state_dict(state_dict)
+        self.exploration_rate = exploration_rate

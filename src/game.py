@@ -92,8 +92,8 @@ class SnakeGameAI:
         and returns a np.array.
         Credits goes to https://github.com/danielegrattarola/deep-q-snake/blob/master/snake.py
         """
-        data = pygame.image.tostring(self.display, 'RGB')  # Take screenshot
-        #data = pygame.surfarray.array3d(pygame.display.get_surface())
+        #data = pygame.image.tostring(self.display, 'RGB')  # Take screenshot
+        data = pygame.surfarray.array3d(pygame.display.get_surface())
         image = Image.frombytes('RGB', (250, 250), data)
         image = image.convert('L')  # Convert to greyscale
         image = image.resize((84, 84)) 
@@ -120,8 +120,7 @@ class SnakeGameAI:
         if self.is_collision() or self.frame_iteration > 100*len(self.snake):
             game_over = True
             reward = -10
-            
-            return reward, game_over, self.score
+            return reward, game_over
 
         # 4. place new food or just move
         if self.head == self.food:
@@ -136,7 +135,7 @@ class SnakeGameAI:
         self.clock.tick(SPEED)
 
         # 6. return game over and score
-        return reward, game_over, self.score
+        return reward, game_over
 
 
     def is_collision(self, pt=None):
