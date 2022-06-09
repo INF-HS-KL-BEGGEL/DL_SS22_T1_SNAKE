@@ -11,6 +11,9 @@ from PIL import Image
 from collections import namedtuple
 import numpy as np
 
+import os
+os.environ["SDL_VIDEODRIVER"] = "dummy"
+
 pygame.init()
 font = pygame.font.Font('arial.ttf', 25)
 #font = pygame.font.SysFont('arial', 25)
@@ -27,7 +30,7 @@ Point = namedtuple('Point', 'x, y')
 WHITE = (255, 255, 255)
 RED = (200,0,0)
 BLUE1 = (0, 0, 255)
-BLUE2 = (0, 100, 255)
+BLUE2 = (0, 0, 255)
 BLACK = (0,0,0)
 
 BLOCK_SIZE = 25
@@ -104,7 +107,7 @@ class SnakeGameAI:
 
 
     def play_step(self, action):
-        final_move = [0,0,0,0]
+        final_move = [0,0,0]
         final_move[action] = 1
         self.frame_iteration += 1
         # 1. collect user input
@@ -123,7 +126,7 @@ class SnakeGameAI:
         if self.is_collision() or self.frame_iteration > 100*len(self.snake):
             game_over = True
             reward = -10
-            return reward, game_over
+            return reward, game_over, self.score
 
         # 4. place new food or just move
         if self.head == self.food:
@@ -138,7 +141,7 @@ class SnakeGameAI:
         self.clock.tick(SPEED)
 
         # 6. return game over and score
-        return reward, game_over
+        return reward, game_over, self.score
 
 
     def is_collision(self, pt=None):
@@ -174,16 +177,14 @@ class SnakeGameAI:
         clock_wise = [Direction.RIGHT, Direction.DOWN, Direction.LEFT, Direction.UP]
         idx = clock_wise.index(self.direction)
 
-        if np.array_equal(action, [1, 0, 0, 0]):
-            new_dir = Direction.RIGHT#clock_wise[idx] # no change
-        elif np.array_equal(action, [0, 1, 0,0]):
-            #next_idx = (idx + 1) % 4
-            new_dir = Direction.RIGHT#clock_wise[next_idx] # right turn r -> d -> l -> u
-        elif np.array_equal(action, [0, 0, 1,0]):# [0, 0, 1]
-            #next_idx = (idx - 1) % 4
-            new_dir = Direction.UP#clock_wise[next_idx] # left turn r -> u -> l -> d
-        else:
-            new_dir = Direction.DOWN
+        if np.array_equal(action, [1, 0, 0]):
+            new_dir = clock_wise[idx] # no change
+        elif np.array_equal(action, [0, 1, 0]):
+            next_idx = (idx + 1) % 4
+            new_dir = clock_wise[next_idx] # right turn r -> d -> l -> u
+        else: # [0, 0, 1]
+            next_idx = (idx - 1) % 4
+            new_dir = clock_wise[next_idx] # left turn r -> u -> l -> d
 
         self.direction = new_dir
 

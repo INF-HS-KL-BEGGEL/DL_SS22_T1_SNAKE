@@ -35,6 +35,8 @@ class SnakeAgent:
         if checkpoint:
             self.load(checkpoint)
 
+        print(self.use_cuda)
+
         self.optimizer = torch.optim.Adam(self.net.parameters(), lr=0.00025)
         self.loss_fn = torch.nn.SmoothL1Loss()
 

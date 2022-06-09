@@ -4,6 +4,7 @@ os.environ['KMP_DUPLICATE_LIB_OK']='True'
 import random, datetime
 from pathlib import Path
 
+
 from game import SnakeGameAI
 
 from metrics import MetricLogger
@@ -13,7 +14,7 @@ save_dir = Path('checkpoints') / datetime.datetime.now().strftime('%Y-%m-%dT%H-%
 save_dir.mkdir(parents=True)
 
 checkpoint = None # Path('checkpoints/2020-10-21T18-25-27/snake.chkpt')
-agent = SnakeAgent(state_dim=(4, 84, 84), action_dim=4, save_dir=save_dir, checkpoint=checkpoint)
+agent = SnakeAgent(state_dim=(4, 84, 84), action_dim=3, save_dir=save_dir, checkpoint=checkpoint)
 
 logger = MetricLogger(save_dir)
 
@@ -32,7 +33,7 @@ for e in range(episodes):
         # 5. Agent performs action
         #### funktion play_step in game anpassen.
         next_state = game.get_last_frames(game.screenshot())
-        reward, done = game.play_step(action)
+        reward, done, score = game.play_step(action)
 
         # 6. Remember
         agent.cache(state, next_state, action, reward, done)
