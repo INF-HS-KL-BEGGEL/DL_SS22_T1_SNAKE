@@ -11,7 +11,7 @@ from collections import namedtuple
 import numpy as np
 
 import os
-os.environ["SDL_VIDEODRIVER"] = "dummy"
+#os.environ["SDL_VIDEODRIVER"] = "dummy"
 
 pygame.init()
 font = pygame.font.Font('arial.ttf', 25)
