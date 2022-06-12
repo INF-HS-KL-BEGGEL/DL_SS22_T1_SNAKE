@@ -23,9 +23,7 @@ episodes = 40000
 game = SnakeGameAI()
 ### for Loop that train the model num_episodes times by playing the game
 for e in range(episodes):
-    game.reset()
-    observation = game.screenshot()
-    state = game.get_last_frames(observation)
+    state = game.initState()
     # Play the game!
     while True:
 
@@ -33,8 +31,7 @@ for e in range(episodes):
 
         # 5. Agent performs action
         #### funktion play_step in game anpassen.
-        next_state = game.get_last_frames(game.screenshot())
-        reward, done, score = game.play_step(action)
+        next_state, reward, done, score = game.play_step(action)
         maxscore = max(maxscore, score)
         # 6. Remember
         agent.cache(state, next_state, action, reward, done)

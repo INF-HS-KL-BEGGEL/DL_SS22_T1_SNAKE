@@ -11,7 +11,7 @@ class SnakeAgent:
     def __init__(self, state_dim, action_dim, save_dir, checkpoint=None):
         self.state_dim = state_dim
         self.action_dim = action_dim
-        self.memory = deque(maxlen=50000)
+        self.memory = deque(maxlen=40000)
         self.batch_size = 32
         self.random = 0
         self.calc = 0
@@ -22,7 +22,7 @@ class SnakeAgent:
         self.gamma = 0.9
 
         self.curr_step = 0
-        self.burnin = 50000  # min. experiences before training, filling mem...
+        self.burnin = 40000  # min. experiences before training, filling mem...
         self.learn_every = 3   # no. of experiences between updates to Q_online
         self.sync_every = 1e4   # no. of experiences between Q_target & Q_online sync
 
@@ -54,7 +54,7 @@ class SnakeAgent:
             state = torch.FloatTensor(state).cuda() if self.use_cuda else torch.FloatTensor(state)
             state = state.unsqueeze(0)
             action_values = self.net(state, model='training')
-            action_idx = torch.argmax(action_values, axis=1).item()
+            action_idx = torch.argmax(action_values).item()
             self.calc +=1
 
         # decrease exploration_rate
@@ -125,6 +125,7 @@ class SnakeAgent:
             return None, None
 
         if self.curr_step % self.learn_every != 0:
+            print("TRAINING")
             return None, None
 
         # Sample from memory

@@ -2,7 +2,6 @@ from hashlib import new
 from math import fabs
 from sys import flags
 from turtle import shape
-from typing import final
 import pygame
 import random
 from collections import deque
@@ -12,7 +11,7 @@ from collections import namedtuple
 import numpy as np
 
 import os
-#os.environ["SDL_VIDEODRIVER"] = "dummy"
+os.environ["SDL_VIDEODRIVER"] = "dummy"
 
 pygame.init()
 font = pygame.font.Font('arial.ttf', 25)
@@ -28,13 +27,13 @@ Point = namedtuple('Point', 'x, y')
 
 # rgb colors
 WHITE = (255, 255, 255)
-RED = (200,0,0)
+RED = (125,125,125)
 BLUE1 = (0, 0, 255)
 BLUE2 = (0, 0, 255)
 BLACK = (0,0,0)
 
 BLOCK_SIZE = 25
-SPEED = 900
+SPEED = 1000
 
 class SnakeGameAI:
 
@@ -65,7 +64,6 @@ class SnakeGameAI:
         self._place_food()
         self.frame_iteration = 0
 
-
     def _place_food(self):
         x = random.randint(0, (self.w-BLOCK_SIZE )//BLOCK_SIZE )*BLOCK_SIZE
         y = random.randint(0, (self.h-BLOCK_SIZE )//BLOCK_SIZE )*BLOCK_SIZE
@@ -91,17 +89,21 @@ class SnakeGameAI:
 
         return state
 
+    def initState(self):
+        self._update_ui()
+        return self.get_last_frames(self.screenshot())
+
     def screenshot(self):
         """
         Takes a screenshot of the game , converts it to grayscale, reshapes it to size INPUT_HEIGHT, INPUT_WIDTH,
         and returns a np.array.
         Credits goes to https://github.com/danielegrattarola/deep-q-snake/blob/master/snake.py
         """
-        #data = pygame.image.tostring(self.display, 'RGB')  # Take screenshot
-        data = pygame.surfarray.array3d(pygame.display.get_surface())
+        data = pygame.image.tostring(self.display, 'RGB')  # Take screenshot
+        #data = pygame.surfarray.array3d(pygame.display.get_surface())
         image = Image.frombytes('RGB', (250, 250), data)
         image = image.convert('L')  # Convert to greyscale
-        image = image.resize((84, 84)) 
+        image = image.resize((84, 84))
         matrix = np.asarray(image.getdata(), dtype=np.uint8)
         matrix = (matrix - 128)/(128 - 1)  # Normalize from -1 to 1
         return matrix.reshape(image.size[0], image.size[1])
@@ -120,14 +122,14 @@ class SnakeGameAI:
         # 2. move
         self._move(final_move) # update the head
         self.snake.insert(0, self.head)
-        
+        ########
         # 3. check if game over
         reward = -0.02
         game_over = False
         if self.is_collision() or self.frame_iteration > 100*len(self.snake):
             game_over = True
             reward = -1
-            return reward, game_over, self.score
+            return self.get_last_frames(self.screenshot()), reward, game_over, self.score
 
         # 4. place new food or just move
         if self.head == self.food:
@@ -139,10 +141,9 @@ class SnakeGameAI:
         
         # 5. update ui and clock
         self._update_ui()
-        self.clock.tick(SPEED)
-
+        self.clock.tick()
         # 6. return game over and score
-        return reward, game_over, self.score
+        return self.get_last_frames(self.screenshot()), reward, game_over, self.score
 
 
     def is_collision(self, pt=None):
@@ -159,7 +160,7 @@ class SnakeGameAI:
 
 
     def _update_ui(self):
-        self.display.fill(BLACK)
+        self.display.fill(WHITE)
 
         for pt in self.snake:
             pygame.draw.rect(self.display, BLUE1, pygame.Rect(pt.x, pt.y, BLOCK_SIZE, BLOCK_SIZE))
