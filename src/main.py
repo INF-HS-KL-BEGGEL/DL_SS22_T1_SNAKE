@@ -12,9 +12,10 @@ from agent import SnakeAgent
 
 save_dir = Path('checkpoints') / datetime.datetime.now().strftime('%Y-%m-%dT%H-%M-%S')
 save_dir.mkdir(parents=True)
+maxscore = 0
 
 checkpoint = None # Path('checkpoints/2020-10-21T18-25-27/snake.chkpt')
-agent = SnakeAgent(state_dim=(4, 84, 84), action_dim=3, save_dir=save_dir, checkpoint=checkpoint)
+agent = SnakeAgent(state_dim=(4, 84, 84), action_dim=4, save_dir=save_dir, checkpoint=checkpoint)
 
 logger = MetricLogger(save_dir)
 
@@ -28,13 +29,13 @@ for e in range(episodes):
     # Play the game!
     while True:
 
-        action = agent.act(state)
+        action, calc, rand = agent.act(state)
 
         # 5. Agent performs action
         #### funktion play_step in game anpassen.
         next_state = game.get_last_frames(game.screenshot())
         reward, done, score = game.play_step(action)
-
+        maxscore = max(maxscore, score)
         # 6. Remember
         agent.cache(state, next_state, action, reward, done)
 
@@ -55,6 +56,8 @@ for e in range(episodes):
     logger.log_episode()
 
     if e % 20 == 0:
+        print("Random Action: %s, Calc Action: %s, Score: %s" % (rand, calc, maxscore) )
+        agent.resetCounter()
         logger.record(
             episode=e,
             epsilon=agent.exploration_rate,

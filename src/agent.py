@@ -11,8 +11,10 @@ class SnakeAgent:
     def __init__(self, state_dim, action_dim, save_dir, checkpoint=None):
         self.state_dim = state_dim
         self.action_dim = action_dim
-        self.memory = deque(maxlen=100000)
+        self.memory = deque(maxlen=50000)
         self.batch_size = 32
+        self.random = 0
+        self.calc = 0
 
         self.exploration_rate = 1
         self.exploration_rate_decay = 0.99999975
@@ -20,11 +22,11 @@ class SnakeAgent:
         self.gamma = 0.9
 
         self.curr_step = 0
-        self.burnin = 1e5  # min. experiences before training
+        self.burnin = 50000  # min. experiences before training, filling mem...
         self.learn_every = 3   # no. of experiences between updates to Q_online
         self.sync_every = 1e4   # no. of experiences between Q_target & Q_online sync
 
-        self.save_every = 5e5   
+        self.save_every = 1e5   
         self.save_dir = save_dir
 
         self.use_cuda = torch.cuda.is_available()
@@ -42,16 +44,10 @@ class SnakeAgent:
 
 
     def act(self, state):
-        """
-        Given a state, choose an epsilon-greedy action and update value of step.
-        Inputs:
-        state(LazyFrame): A single observation of the current state, dimension is (state_dim)
-        Outputs:
-        action_idx (int): An integer representing which action Mario will perform
-        """
         # EXPLORE
         if np.random.rand() < self.exploration_rate:
             action_idx = np.random.randint(self.action_dim)
+            self.random += 1
 
         # EXPLOIT
         else:
@@ -59,6 +55,7 @@ class SnakeAgent:
             state = state.unsqueeze(0)
             action_values = self.net(state, model='training')
             action_idx = torch.argmax(action_values, axis=1).item()
+            self.calc +=1
 
         # decrease exploration_rate
         self.exploration_rate *= self.exploration_rate_decay
@@ -66,7 +63,11 @@ class SnakeAgent:
 
         # increment step
         self.curr_step += 1
-        return action_idx
+        return action_idx, self.calc, self.random
+
+    def resetCounter(self):
+        self.calc = 0
+        self.random = 0
 
     def cache(self, state, next_state, action, reward, done):
 
