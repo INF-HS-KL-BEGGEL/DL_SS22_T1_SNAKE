@@ -1,5 +1,12 @@
 from torch import nn
+from enum import Enum
 import copy
+
+
+class NetMode(Enum):
+    TARGET = 1
+    TRAINING = 2
+
 
 class SnakeCNN(nn.Module):
     def __init__(self, input_dim, output_dim):
@@ -7,11 +14,11 @@ class SnakeCNN(nn.Module):
         c, h, w = input_dim
 
         if h != 84:
-            raise ValueError(f"Expecting input height: 84, got: {h}")
+            raise ValueError(f"Picture Shape Error, Expecting input height: 84, got: {h}")
         if w != 84:
-            raise ValueError(f"Expecting input width: 84, got: {w}")
+            raise ValueError(f"Picture Shape Error, Expecting input width: 84, got: {w}")
 
-        self.online = nn.Sequential(
+        self.trainingNet = nn.Sequential(
             nn.Conv2d(in_channels=c, out_channels=32, kernel_size=8, stride=4),
             nn.ReLU(),
             nn.Conv2d(in_channels=32, out_channels=64, kernel_size=4, stride=2),
@@ -23,14 +30,14 @@ class SnakeCNN(nn.Module):
             nn.ReLU(),
             nn.Linear(512, 4)
         )
+        #create a target Net to train against
+        self.targetNet = copy.deepcopy(self.trainingNet)
 
-        self.target = copy.deepcopy(self.online)
-
-        for p in self.target.parameters():
+        for p in self.targetNet.parameters():
             p.requires_grad = False
 
     def forward(self, input, model):
-        if model == 'training':
-            return self.online(input)
-        elif model == 'target':
-            return self.target(input)
+        if model == NetMode.TRAINING:
+            return self.trainingNet(input)
+        elif model == NetMode.TARGET:
+            return self.targetNet(input)

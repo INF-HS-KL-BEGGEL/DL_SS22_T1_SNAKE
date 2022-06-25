@@ -4,14 +4,16 @@ import random, numpy as np
 from pathlib import Path
 
 from neural import SnakeCNN
+from neural import NetMode
 from collections import deque
 
+MAX_MEM_SIZE=40000
 
 class SnakeAgent:
     def __init__(self, state_dim, action_dim, save_dir, checkpoint=None):
         self.state_dim = state_dim
         self.action_dim = action_dim
-        self.memory = deque(maxlen=40000)
+        self.memory = deque(maxlen=MAX_MEM_SIZE)
         self.batch_size = 32
         self.random = 0
         self.calc = 0
@@ -22,38 +24,38 @@ class SnakeAgent:
         self.gamma = 0.9
 
         self.curr_step = 0
-        self.burnin = 40000  # min. experiences before training, filling mem...
-        self.learn_every = 3   # no. of experiences between updates to Q_online
-        self.sync_every = 1e4   # no. of experiences between Q_target & Q_online sync
+        self.steps_before_learning = MAX_MEM_SIZE  # Anzahl an Schritte bevor Lernvorgang beginnt
+        self.learn_every = 3   #Trainingsnetz wird alle 3 Schritte aktualisiert
+        self.sync_every = 1e4   # Anzahl Schritte bevor target Netzwerk aktualisiert wird
 
-        self.save_every = 1e5   
+        self.save_every = 1e5   #Anzahl Schritte nach denen gespeichert wird
         self.save_dir = save_dir
 
-        self.use_cuda = torch.cuda.is_available()
+        self.use_cuda = torch.cuda.is_available() #kann Grafikkarte verwendet werden?
 
-        self.net = SnakeCNN(self.state_dim, self.action_dim).float()
-        if self.use_cuda:
+        self.net = SnakeCNN(self.state_dim, self.action_dim).float()    #enthällt target und Zielnetz. kann über enum ausgewählt werden
+        if self.use_cuda:       #Nutze Grafikkarte für Netz wenn möglich. Ansonsten cpu
             self.net = self.net.to(device='cuda')
-        if checkpoint:
+        if checkpoint:      #lade Checkpoint wenn vorhanden
             self.load(checkpoint)
 
         print(self.use_cuda)
 
         self.optimizer = torch.optim.Adam(self.net.parameters(), lr=0.00025)
-        self.loss_fn = torch.nn.SmoothL1Loss()
+        self.loss_function = torch.nn.SmoothL1Loss()
 
 
     def act(self, state):
-        # EXPLORE
+        # EXPLORE (Ausführen zufälliger Actionen um Gedächtniss zu füllen)
         if np.random.rand() < self.exploration_rate:
             action_idx = np.random.randint(self.action_dim)
             self.random += 1
 
-        # EXPLOIT
+        # EXPLOIT   (verwendet Voraussage der KI)
         else:
             state = torch.FloatTensor(state).cuda() if self.use_cuda else torch.FloatTensor(state)
             state = state.unsqueeze(0)
-            action_values = self.net(state, model='training')
+            action_values = self.net(state, model=NetMode.TRAINING)
             action_idx = torch.argmax(action_values).item()
             self.calc +=1
 
@@ -61,7 +63,6 @@ class SnakeAgent:
         self.exploration_rate *= self.exploration_rate_decay
         self.exploration_rate = max(self.exploration_rate_min, self.exploration_rate)
 
-        # increment step
         self.curr_step += 1
         return action_idx, self.calc, self.random
 
@@ -90,20 +91,20 @@ class SnakeAgent:
 
 
     def td_estimate(self, state, action):
-        current_Q = self.net(state, model='training')[np.arange(0, self.batch_size), action] # Q_online(s,a)
+        current_Q = self.net(state, model=NetMode.TRAINING)[np.arange(0, self.batch_size), action]
         return current_Q
 
 
     @torch.no_grad()
     def td_target(self, reward, next_state, done):
-        next_state_Q = self.net(next_state, model='training')
+        next_state_Q = self.net(next_state, model=NetMode.TRAINING)
         best_action = torch.argmax(next_state_Q, axis=1)
-        next_Q = self.net(next_state, model='target')[np.arange(0, self.batch_size), best_action]
+        next_Q = self.net(next_state, model=NetMode.TARGET)[np.arange(0, self.batch_size), best_action]
         return (reward + (1 - done.float()) * self.gamma * next_Q).float()
 
 
-    def update_Q_online(self, td_estimate, td_target) :
-        loss = self.loss_fn(td_estimate, td_target)
+    def update_Q_training(self, td_estimate, td_target) :
+        loss = self.loss_function(td_estimate, td_target)
         self.optimizer.zero_grad()
         loss.backward()
         self.optimizer.step()
@@ -111,7 +112,7 @@ class SnakeAgent:
 
 
     def sync_Q_target(self):
-        self.net.target.load_state_dict(self.net.online.state_dict())
+        self.net.targetNet.load_state_dict(self.net.trainingNet.state_dict())
 
 
     def learn(self):
@@ -121,12 +122,15 @@ class SnakeAgent:
         if self.curr_step % self.save_every == 0:
             self.save()
 
-        if self.curr_step < self.burnin:
+        if self.curr_step < self.steps_before_learning:
             return None, None
+        elif self.curr_step == self.steps_before_learning:
+            print("--------start training--------")
 
         if self.curr_step % self.learn_every != 0:
-            print("TRAINING")
             return None, None
+
+
 
         # Sample from memory
         state, next_state, action, reward, done = self.recall()
@@ -137,8 +141,7 @@ class SnakeAgent:
         # Get TD Target
         td_tgt = self.td_target(reward, next_state, done)
 
-        # Backpropagate loss through Q_online
-        loss = self.update_Q_online(td_est, td_tgt)
+        loss = self.update_Q_training(td_est, td_tgt)
 
         return (td_est.mean().item(), loss)
 
@@ -159,10 +162,10 @@ class SnakeAgent:
         if not load_path.exists():
             raise ValueError(f"{load_path} does not exist")
 
-        ckp = torch.load(load_path, map_location=('cuda' if self.use_cuda else 'cpu'))
-        exploration_rate = ckp.get('exploration_rate')
-        state_dict = ckp.get('model')
-
-        print(f"Loading model at {load_path} with exploration rate {exploration_rate}")
+        checkpoint_to_load = torch.load(load_path, map_location=('cuda' if self.use_cuda else 'cpu'))
+        self.exploration_rate = checkpoint_to_load.get('exploration_rate')
+        state_dict = checkpoint_to_load.get('model')
         self.net.load_state_dict(state_dict)
-        self.exploration_rate = exploration_rate
+        print(f"Loading model at {load_path} with exploration rate {self.exploration_rate}. Cuda enabled? {self.use_cuda}")
+
+

@@ -1,7 +1,7 @@
 import os
 os.environ['KMP_DUPLICATE_LIB_OK']='True'
 
-import random, datetime
+import datetime
 from pathlib import Path
 
 
@@ -14,8 +14,8 @@ save_dir = Path('checkpoints') / datetime.datetime.now().strftime('%Y-%m-%dT%H-%
 save_dir.mkdir(parents=True)
 maxscore = 0
 
-checkpoint = None # Path('checkpoints/2020-10-21T18-25-27/snake.chkpt')
-agent = SnakeAgent(state_dim=(4, 84, 84), action_dim=4, save_dir=save_dir, checkpoint=checkpoint)
+current_checkpoint = None # Path('checkpoints/2020-10-21T18-25-27/snake.chkpt')
+agent = SnakeAgent(state_dim=(4, 84, 84), action_dim=4, save_dir=save_dir, checkpoint=current_checkpoint)
 
 logger = MetricLogger(save_dir)
 
