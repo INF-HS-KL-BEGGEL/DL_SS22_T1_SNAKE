@@ -89,22 +89,15 @@ class SnakeAgent:
         state, next_state, action, reward, done = map(torch.stack, zip(*batch))
         return state, next_state, action.squeeze(), reward.squeeze(), done.squeeze()
 
-
-    def td_estimate(self, state, action):
-        current_Q = self.net(state, model=NetMode.TRAINING)[np.arange(0, self.batch_size), action]
-        return current_Q
-
-
     @torch.no_grad()
-    def td_target(self, reward, next_state, done):
+    def calc_next_Q(self, reward, next_state, done):
         next_state_Q = self.net(next_state, model=NetMode.TRAINING)
         best_action = torch.argmax(next_state_Q, axis=1)
         next_Q = self.net(next_state, model=NetMode.TARGET)[np.arange(0, self.batch_size), best_action]
         return (reward + (1 - done.float()) * self.gamma * next_Q).float()
 
-
-    def update_Q_training(self, td_estimate, td_target) :
-        loss = self.loss_function(td_estimate, td_target)
+    def update_Q_training(self, current_Q, next_Q) :
+        loss = self.loss_function(current_Q, next_Q)
         self.optimizer.zero_grad()
         loss.backward()
         self.optimizer.step()
@@ -130,20 +123,18 @@ class SnakeAgent:
         if self.curr_step % self.learn_every != 0:
             return None, None
 
-
-
         # Sample from memory
         state, next_state, action, reward, done = self.recall()
 
-        # Get TD Estimate
-        td_est = self.td_estimate(state, action)
+        # Get Estimate
+        estimate =self.net(state, model=NetMode.TRAINING)[np.arange(0, self.batch_size), action]
 
-        # Get TD Target
-        td_tgt = self.td_target(reward, next_state, done)
+        # Get next Q for loss
+        nextQ = self.calc_next_Q(reward, next_state, done)
 
-        loss = self.update_Q_training(td_est, td_tgt)
+        loss = self.update_Q_training(estimate, nextQ)
 
-        return (td_est.mean().item(), loss)
+        return (estimate.mean().item(), loss)
 
 
     def save(self):

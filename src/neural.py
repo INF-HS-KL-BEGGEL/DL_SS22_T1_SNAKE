@@ -1,7 +1,8 @@
+import torch
 from torch import nn
 from enum import Enum
 import copy
-
+from torchinfo import summary
 
 class NetMode(Enum):
     TARGET = 1
@@ -35,6 +36,16 @@ class SnakeCNN(nn.Module):
 
         for p in self.targetNet.parameters():
             p.requires_grad = False
+
+        summary(
+            self.targetNet,
+            (32, 4,84,84),
+            dtypes=[torch.float],
+            verbose=2,
+            col_width=16,
+            col_names=["input_size", "output_size", "num_params"],
+            row_settings=["var_names"],
+        )
 
     def forward(self, input, model):
         if model == NetMode.TRAINING:

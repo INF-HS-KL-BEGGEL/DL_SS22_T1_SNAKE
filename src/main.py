@@ -31,6 +31,7 @@ for e in range(episodes):
 
         # 5. Agent performs action
         #### funktion play_step in game anpassen.
+
         next_state, reward, done, score = game.play_step(action)
         maxscore = max(maxscore, score)
         # 6. Remember
