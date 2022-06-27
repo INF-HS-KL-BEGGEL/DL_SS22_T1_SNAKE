@@ -22,7 +22,7 @@ for e in range(episodes):
     state = game.initState()
     while True:
 
-        action, calc, rand = snakeagent.act(state)
+        action, calc, rand = snakeagent.get_action(state)
         next_state, reward, done, score = game.play_step(action)
         snakeagent.cache(state, next_state, action, reward, done)
         maxscore = max(maxscore, score)

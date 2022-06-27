@@ -27,7 +27,7 @@ for e in range(episodes):
     # Play the game!
     while True:
 
-        action, calc, rand = agent.act(state)
+        action, calc, rand = agent.get_action(state)
 
         # 5. Agent performs action
         #### funktion play_step in game anpassen.

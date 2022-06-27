@@ -45,7 +45,7 @@ class SnakeAgent:
         self.loss_function = torch.nn.SmoothL1Loss()
 
 
-    def act(self, state):
+    def get_action(self, state):
         # EXPLORE (Ausführen zufälliger Actionen um Gedächtniss zu füllen)
         if np.random.rand() < self.exploration_rate:
             action_idx = np.random.randint(self.action_dim)
@@ -158,5 +158,3 @@ class SnakeAgent:
         state_dict = checkpoint_to_load.get('model')
         self.net.load_state_dict(state_dict)
         print(f"Loading model at {load_path} with exploration rate {self.exploration_rate}. Cuda enabled? {self.use_cuda}")
-
-
