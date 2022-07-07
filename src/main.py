@@ -1,156 +1,63 @@
-import pygame
-import time
-import random
- 
-pygame.init()
- 
-white = (255, 255, 255)
-yellow = (255, 255, 102)
-black = (0, 0, 0)
-red = (255, 0, 0)
-green = (0, 255, 0)
-blue = (50, 153, 213)
- 
-dis_width = 600
-dis_height = 400
- 
-dis = pygame.display.set_mode((dis_width, dis_height))
-pygame.display.set_caption('Snake')
- 
-clock = pygame.time.Clock()
- 
-snake_block = 10
-snake_speed = 15
+import os
+os.environ['KMP_DUPLICATE_LIB_OK']='True'
 
-global  y1_change
-y1_change = snake_block
-global x1_change
-x1_change = 0
- 
-font_style = pygame.font.SysFont("bahnschrift", 25)
-score_font = pygame.font.SysFont("comicsansms", 35)
- 
- 
-def Your_score(score):
-    value = score_font.render("Your Score: " + str(score), True, yellow)
-    dis.blit(value, [0, 0])
- 
- 
- 
-def our_snake(snake_block, snake_list):
-    for x in snake_list:
-        pygame.draw.rect(dis, green, [x[0], x[1], snake_block, snake_block])
- 
- 
-def message(msg, color):
-    mesg = font_style.render(msg, True, color)
-    dis.blit(mesg, [dis_width / 6, dis_height / 3])
+import datetime
+from pathlib import Path
 
-def left():
-    global y1_change
-    global x1_change
-    x1_change = -snake_block
-    y1_change = 0
 
-def right():
-    global y1_change
-    global x1_change
-    x1_change = snake_block
-    y1_change = 0
-	
-	
-def up():
-    global y1_change
-    global x1_change
-    y1_change = -snake_block
-    x1_change = 0
-	
-def down():
-    global y1_change
-    global x1_change
-    y1_change = snake_block
-    x1_change = 0
- 
-def gameLoop():
-    game_over = False
-    game_close = False
+from game import SnakeGameAI
 
-    global y1_change
-    global x1_change
-    
-    x1 = dis_width / 2
-    y1 = dis_height / 2
- 
-    snake_List = []
-    Length_of_snake = 1
- 
-    foodx = round(random.randrange(0, dis_width - snake_block) / 10.0) * 10.0
-    foody = round(random.randrange(0, dis_height - snake_block) / 10.0) * 10.0
- 
-    while not game_over:
- 
-        while game_close == True:
-            dis.fill(black)
-            message("You Lost! Press C-Play Again or Q-Quit", red)
-            Your_score(Length_of_snake - 1)
-            pygame.display.update()
- 
-            for event in pygame.event.get():
-                if event.type == pygame.KEYDOWN:
-                    if event.key == pygame.K_q:
-                        game_over = True
-                        game_close = False
-                    if event.key == pygame.K_c:
-                        gameLoop()
- 
-        for event in pygame.event.get():
-            if event.type == pygame.QUIT:
-                game_over = True
-            if event.type == pygame.KEYDOWN:
-                if event.key == pygame.K_LEFT:
-                    x1_change = -snake_block
-                    y1_change = 0
-                elif event.key == pygame.K_RIGHT:
-                    x1_change = snake_block
-                    y1_change = 0
-                elif event.key == pygame.K_UP:
-                    y1_change = -snake_block
-                    x1_change = 0
-                elif event.key == pygame.K_DOWN:
-                    y1_change = snake_block
-                    x1_change = 0
- 
-        if x1 >= dis_width or x1 < 0 or y1 >= dis_height or y1 < 0:
-            game_close = True
-        x1 += x1_change
-        y1 += y1_change
-        dis.fill(black)
-        pygame.draw.rect(dis, red, [foodx, foody, snake_block, snake_block])
-        snake_Head = []
-        snake_Head.append(x1)
-        snake_Head.append(y1)
-        snake_List.append(snake_Head)
-        if len(snake_List) > Length_of_snake:
-            del snake_List[0]
- 
-        for x in snake_List[:-1]:
-            if x == snake_Head:
-                game_close = True
- 
-        our_snake(snake_block, snake_List)
-        Your_score(Length_of_snake - 1)
- 
-        pygame.display.update()
- 
-        if x1 == foodx and y1 == foody:
-            foodx = round(random.randrange(0, dis_width - snake_block) / 10.0) * 10.0
-            foody = round(random.randrange(0, dis_height - snake_block) / 10.0) * 10.0
-            Length_of_snake += 1
- 
-        clock.tick(snake_speed)
- 
-    pygame.quit()
-    quit()
- 
- 
-gameLoop()
+from metrics import MetricLogger
+from agent import SnakeAgent
+
+save_dir = Path('checkpoints') / datetime.datetime.now().strftime('%Y-%m-%dT%H-%M-%S')
+save_dir.mkdir(parents=True)
+maxscore = 0
+
+current_checkpoint = None # Path('checkpoints/2020-10-21T18-25-27/snake.chkpt')
+agent = SnakeAgent(state_dim=(4, 84, 84), action_dim=4, save_dir=save_dir, checkpoint=current_checkpoint)
+
+logger = MetricLogger(save_dir)
+
+episodes = 40000
+game = SnakeGameAI()
+### for Loop that train the model num_episodes times by playing the game
+for e in range(episodes):
+    state = game.initState()
+    # Play the game!
+    while True:
+
+        action, calc, rand = agent.get_action(state)
+
+        # 5. Agent performs action
+        #### funktion play_step in game anpassen.
+
+        next_state, reward, done, score = game.play_step(action)
+        maxscore = max(maxscore, score)
+        # 6. Remember
+        agent.cache(state, next_state, action, reward, done)
+
+        # 7. Learn
+        q, loss = agent.learn()
+
+        # 8. Logging
+        logger.log_step(reward, loss, q)
+
+        # 9. Update state
+        state = next_state
+
+        # 10. Check if end of game
+        if done:
+            game.reset()
+            break
+
+    logger.log_episode()
+
+    if e % 20 == 0:
+        print("Random Action: %s, Calc Action: %s, Score: %s" % (rand, calc, maxscore) )
+        agent.resetCounter()
+        logger.record(
+            episode=e,
+            epsilon=agent.exploration_rate,
+            step=agent.curr_step
+        )
