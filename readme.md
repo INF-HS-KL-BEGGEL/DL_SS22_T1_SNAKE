@@ -31,7 +31,7 @@ This starts a window in which the Snake-agent "plays" a trained model. No traini
 E.g `checkpoint = Path('checkpoints/timestamp/name_of_the_checkpoint.chkpt')`
 
 ## Pre-Trained
-A pretrained model can be found in the `pretrained_checkpoint` folder.  The model was trained for approx. 24 hours. A Google Cloud VM instance was used as the training hardware:
+A pretrained model can be found in the `src/pretrained_checkpoint` folder.  The model was trained for approx. 24 hours. A Google Cloud VM instance was used as the training hardware:
  - n1-highmem-2
  - Tesla K 80 GPU
 
