@@ -1,5 +1,5 @@
 
-# Ein Reinforcement-Learning Agent lernt den Spieleklassiker Snake 
+# A Reinforcement-learning Agent learns how to play the classic game Snake
 
 As part of a master project, a functional snake agent was developed with the help of [Double Q-learning](https://towardsdatascience.com/double-deep-q-networks-905dd8325412), [PyTorch](https://pytorch.org) and a [CNN](https://de.wikipedia.org/wiki/Convolutional_Neural_Network). 
 
