@@ -3,7 +3,7 @@
 
 As part of a master project, a functional snake agent was developed with the help of [Double Q-learning](https://towardsdatascience.com/double-deep-q-networks-905dd8325412), [PyTorch](https://pytorch.org) and a [CNN](https://de.wikipedia.org/wiki/Convolutional_Neural_Network). 
 
-The Blogpost (german) of this project can be found here.
+The Blogpost (german) of this project can be found [here](https://ki.hs-kl.de/ein-computer-lernt-den-spieleklassiker-snake/).
 
 ## Setup
 
