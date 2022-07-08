@@ -5,8 +5,8 @@ import copy
 from torchinfo import summary
 
 class NetMode(Enum):
-    TARGET = 1
-    TRAINING = 2
+    TARGET = 'target'
+    TRAINING = 'online'
 
 
 class SnakeCNN(nn.Module):
@@ -19,7 +19,7 @@ class SnakeCNN(nn.Module):
         if w != 84:
             raise ValueError(f"Picture Shape Error, Expecting input width: 84, got: {w}")
 
-        self.trainingNet = nn.Sequential(
+        self.online = nn.Sequential(
             nn.Conv2d(in_channels=c, out_channels=32, kernel_size=8, stride=4),
             nn.ReLU(),
             nn.Conv2d(in_channels=32, out_channels=64, kernel_size=4, stride=2),
@@ -32,13 +32,13 @@ class SnakeCNN(nn.Module):
             nn.Linear(512, 4)
         )
         #create a target Net to train against
-        self.targetNet = copy.deepcopy(self.trainingNet)
+        self.target= copy.deepcopy(self.online)
 
-        for p in self.targetNet.parameters():
+        for p in self.target.parameters():
             p.requires_grad = False
 
         summary(
-            self.targetNet,
+            self.target,
             (32, 4,84,84),
             dtypes=[torch.float],
             verbose=2,
@@ -49,6 +49,6 @@ class SnakeCNN(nn.Module):
 
     def forward(self, input, model):
         if model == NetMode.TRAINING:
-            return self.trainingNet(input)
+            return self.online(input)
         elif model == NetMode.TARGET:
-            return self.targetNet(input)
+            return self.target(input)
