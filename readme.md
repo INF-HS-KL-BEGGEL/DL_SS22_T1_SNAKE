@@ -38,6 +38,9 @@ A pretrained model can be found in the `src/pretrained_checkpoint` folder.  The 
 The pre-trained model achieved the following scores:
  - max. Score: 28
  - avg. Score: 12
+ 
+ ![](https://github.com/INF-HS-KL-BEGGEL/DL_SS22_T1_SNAKE/blob/master/gifs/14score.gif)
+ ![](https://github.com/INF-HS-KL-BEGGEL/DL_SS22_T1_SNAKE/blob/master/gifs/26score.gif)
 
 ## Project Structure
 - agent: communicates with game and neural, calculates training values, stores experiences and controlls learning
