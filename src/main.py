@@ -61,3 +61,7 @@ for e in range(episodes):
             epsilon=agent.exploration_rate,
             step=agent.curr_step
         )
+
+    #saved model at every 500th episode
+    if e%500 == 0:
+        agent.save()
