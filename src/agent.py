@@ -105,7 +105,7 @@ class SnakeAgent:
 
 
     def sync_Q_target(self):
-        self.net.targetNet.load_state_dict(self.net.trainingNet.state_dict())
+        self.net.target.load_state_dict(self.net.online.state_dict())
 
 
     def learn(self):
